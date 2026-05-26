@@ -17,15 +17,12 @@
 FROM ://microsoft.com AS build
 WORKDIR /src
 
-# Копируем файл проекта и восстанавливаем зависимости
 COPY TGBot.csproj .
 RUN dotnet restore
 
-# Копируем весь код и компилируем его
 COPY . .
 RUN dotnet publish -c Release -o /app/publish
 
-# Этап запуска (используем оптимизированный runtime)
 FROM ://microsoft.com AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
