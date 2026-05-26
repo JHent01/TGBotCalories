@@ -8,7 +8,7 @@ using Telegram.Bot.Types.Enums;
 var token = "8885853642:AAHK-ptil44ygPoeKPZPd8DCQx1_2qFMGZQ";
 var geminiApiKey = "AIzaSyCwYsfsQNxisdcm8Z54svJ_GoNwnEGhEeI";
 
-var bot = new TelegramBotClient(token);
+var bot = new TelegramBotClient(token); 
 
 var me = await bot.GetMe();
 Console.WriteLine($"Бот запущен: @{me.Username}");
