@@ -6,7 +6,7 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-var keysPath = Path.Combine(AppContext.BaseDirectory, "..", "keys.json");
+var keysPath = Path.Combine(AppContext.BaseDirectory, "..", "/etc/secrets/keys.json");
 if (!File.Exists(keysPath))
     throw new FileNotFoundException($"Файл с ключами не найден: {keysPath}. Создайте keys.json на основе keys.example.json.");
 
