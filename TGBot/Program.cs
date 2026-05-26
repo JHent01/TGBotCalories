@@ -1,12 +1,22 @@
-﻿using Mscc.GenerativeAI;
+﻿using System.Text.Json;
+using Mscc.GenerativeAI;
 using Mscc.GenerativeAI.Types;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-var token = "8885853642:AAHK-ptil44ygPoeKPZPd8DCQx1_2qFMGZQ";
-var geminiApiKey = "AIzaSyCwYsfsQNxisdcm8Z54svJ_GoNwnEGhEeI";
+var keysPath = Path.Combine(AppContext.BaseDirectory, "keys.json");
+if (!File.Exists(keysPath))
+    throw new FileNotFoundException($"Файл с ключами не найден: {keysPath}. Создайте keys.json на основе keys.example.json.");
+
+using var keysFile = File.OpenRead(keysPath);
+var keys = JsonSerializer.Deserialize<JsonElement>(keysFile);
+
+var token = keys.GetProperty("TelegramBotToken").GetString()
+    ?? throw new InvalidOperationException("TelegramBotToken не задан в keys.json.");
+var geminiApiKey = keys.GetProperty("GeminiApiKey").GetString()
+    ?? throw new InvalidOperationException("GeminiApiKey не задан в keys.json.");
 
 var bot = new TelegramBotClient(token); 
 

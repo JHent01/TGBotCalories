@@ -12,4 +12,10 @@
     <PackageReference Include="Telegram.Bot" Version="22.10.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="keys.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
