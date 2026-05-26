@@ -14,7 +14,7 @@
 #ENTRYPOINT ["dotnet", "TGBot.dll"]
 #
 # Этап сборки (используем стабильную версию SDK)
-FROM ://microsoft.com AS build
+FROM microsoft.com AS build
 WORKDIR /src
 
 COPY TGBot.csproj .
@@ -23,7 +23,7 @@ RUN dotnet restore
 COPY . .
 RUN dotnet publish -c Release -o /app/publish
 
-FROM ://microsoft.com AS runtime
+FROM microsoft.com AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
