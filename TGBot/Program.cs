@@ -1,21 +1,20 @@
-﻿using System.Text.Json;
-using Mscc.GenerativeAI;
-using Mscc.GenerativeAI.Types;
+using System.Text.Json;
+using System.Text;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 var keysPath = Path.Combine(AppContext.BaseDirectory,  "keys.json");
-string keyTG = "";
-string keyAI = "";
+string? keyTG = "";
+string? keyAI = "";
 bool keysLoaded = true;
 if (!File.Exists(keysPath))
 {
     try
     {
         keyTG = Environment.GetEnvironmentVariable("TelegramBotToken");
-        keyAI = Environment.GetEnvironmentVariable("GeminiApiKey");
+        keyAI = Environment.GetEnvironmentVariable("GroqApiKey");
         keysLoaded = false;
     }
     catch 
@@ -24,7 +23,7 @@ if (!File.Exists(keysPath))
     }
 }
 string token;
-string geminiApiKey;
+string groqApiKey;
 if (keysLoaded)
 {
     using var keysFile = File.OpenRead(keysPath);
@@ -32,13 +31,14 @@ if (keysLoaded)
 
       token = keys.GetProperty("TelegramBotToken").GetString()
         ?? throw new InvalidOperationException("TelegramBotToken не задан в keys.json.");
-      geminiApiKey = keys.GetProperty("GeminiApiKey").GetString()
-        ?? throw new InvalidOperationException("GeminiApiKey не задан в keys.json.");
+     groqApiKey = keys.GetProperty("GroqApiKey").GetString()
+      ?? throw new InvalidOperationException("GroqApiKey не задан в keys.json.");
+     
 }
 else
 {
     token = keyTG ?? throw new InvalidOperationException("TelegramBotToken не задан в переменных окружения.");
-    geminiApiKey = keyAI ?? throw new InvalidOperationException("GeminiApiKey не задан в переменных окружения.");
+    groqApiKey = keyAI ?? throw new InvalidOperationException("GroqApiKey не задан в переменных окружения.");
 }
 var bot = new TelegramBotClient(token); 
 
@@ -92,29 +92,120 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
         var bestPhoto = photos[^1];
         var file = await botClient.GetFile(bestPhoto.FileId, cancellationToken);
         var fileUrl = $"https://api.telegram.org/file/bot{token}/{file.FilePath}";
+
+        using var httpClient = new HttpClient();
+        var imageBytes = await httpClient.GetByteArrayAsync(fileUrl, cancellationToken);
+        var base64Image = Convert.ToBase64String(imageBytes);
+
+        var prompt = "Ты — ИИ-диетолог и анализатор еды." +
+
+            "Твоя задача — анализировать фото еды, которое пользователь отправляет, определять все блюда и ингредиенты на изображении и максимально точно оценивать их калорийность и БЖУ." +
+            "Главное правило:" +
+            "Не придумывай данные и не искажай оценки. Не преуменьшай и не преувеличивай калорийность. Используй максимально реалистичную и объективную оценку на основе:" +
+            "размера порции" +
+            "видимых ингредиентов" +
+            "способа приготовления" +
+            "средней калорийности продуктов"+
+            "типичных рецептов" +
+            "Если точность определить невозможно —  указывай наиболее вероятную оценку с учетом визуального анализа." +
+            "Правила:" +
+            "Определи каждое отдельное блюдо или продукт на фото." +
+            "Для каждого блюда укажи:" +
+            "название"+
+            "примерный вес порции в граммах"+
+            "калории"+
+            "БЖУ (белки, жиры, углеводы)\r\nОтвет всегда оформляй строго в таком формате:"+
+            "Блюдо 1 — XXX г — XXX ккал (Б: XX г / Ж: XX г / У: XX г)"+
+            "Блюдо 2 — XXX г — XXX ккал (Б: XX г / Ж: XX г / У: XX г)"+
+            "Блюдо 3 — XXX г — XXX ккал (Б: XX г / Ж: XX г / У: XX г)"+
+            "Общее количество калорий: XXX ккал"+
+            "Общее БЖУ:"+
+            "Белки: XX г"+
+            "Жиры: XX г"+
+            "Углеводы: XX г" +
+
+            "Если блюдо невозможно определить точно — укажи наиболее вероятный вариант." +
+            "Если на фото несколько продуктов смешаны — оцени состав максимально объективно." +
+            "Не добавляй лишнего текста, объяснений, предупреждений или дисклеймеров." +
+            "Пиши ответ только на русском языке." +
+            "Если виден бренд, упаковка или размер порции — учитывай это при расчете." +
+            "При сомнениях выбирай среднее реалистичное значение, а не минимальное или максимальное." +
+            "Старайся анализировать:" +
+            "количество масла" +
+            "панировку" +
+            "соусы" +
+            "сахар" +
+            "жарку/запекание"+
+            "напитки"+
+            "скрытые калории"+
+            "Твоя цель — дать максимально честную и точную оценку калорий и БЖУ по фото.";
+
+        var groqRequest = new
+        {
+            model = "meta-llama/llama-4-scout-17b-16e-instruct",
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = new object[]
+                    {
+                        new { type = "text", text = prompt },
+                        new
+                        {
+                            type = "image_url",
+                            image_url = new
+                            {
+                                url = $"data:image/jpeg;base64,{base64Image}"
+                            }
+                        }
+                    }
+                }
+            },
+            temperature = 0.7,
+            max_tokens = 1024
+        };
+
+        var groqHttpClient = new HttpClient();
+        groqHttpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {groqApiKey}");
+
+        var jsonContent = JsonSerializer.Serialize(groqRequest);
+        var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var groqResponse = await groqHttpClient.PostAsync(
+            "https://api.groq.com/openai/v1/chat/completions",
+            requestContent,
+            cancellationToken
+        );
+
+        var responseText = await groqResponse.Content.ReadAsStringAsync(cancellationToken);
          
-        var googleAI = new GoogleAI(apiKey: geminiApiKey);
-        var model = googleAI.GenerativeModel(model: Model.Gemini25Flash);
+        if (!groqResponse.IsSuccessStatusCode)
+        {
+            Console.Error.WriteLine($"Groq API ошибка: {groqResponse.StatusCode} - {responseText}");
+            await botClient.SendMessage(
+                chatId: message.Chat.Id,
+                text: $"❌ Ошибка API: {responseText}",
+                cancellationToken: cancellationToken
+            );
+            return;
+        }
 
-        var prompt = "На этом фото есть еда. Определи все блюда и продукты, которые видишь. " +
-                     "Для каждого укажи примерное количество калорий. " +
-                     "В конце укажи общее количество калорий. " +
-                     "И Рапиши примерное БЖУ (белки, жиры, углеводы) для каждого блюда. " +
-                     "Затем напиши общие БЖУ для всего."+
-                     "Отвечай на русском языке. Будь максимально краток и конкретен. Старайся внимательно анализировать каждое блюдо.Не ври. Не приувеличивай. Не приуменшай."+
-                     "Дай ответ без звездочек и лишних символов."+
-                     "Дай Ответ в формате списка."+
-                    " так что б это выглядело примерно так:"+
-                    "Список блюд с калориями и БЖУ"+
-                    "Общее количество калорий и БЖУ"
-                    
-        ;
-
-        var request = new GenerateContentRequest(prompt);
-        await request.AddMedia(fileUrl);
-
-        var response = await model.GenerateContent(request);
-        var result = response.Text ?? "Не удалось проанализировать фото.";
+        var responseJson = JsonSerializer.Deserialize<JsonElement>(responseText);
+         
+        string result;
+        if (responseJson.TryGetProperty("choices", out var choices) && 
+            choices.GetArrayLength() > 0 &&
+            choices[0].TryGetProperty("message", out var responseMessage) &&
+            responseMessage.TryGetProperty("content", out var content))
+        {
+            result = content.GetString() ?? "Не удалось проанализировать фото.";
+        }
+        else
+        {
+            Console.Error.WriteLine($"Неожиданная структура ответа: {responseText}");
+            result = "Не удалось проанализировать фото.";
+        }
 
         await botClient.SendMessage(
             chatId: message.Chat.Id,

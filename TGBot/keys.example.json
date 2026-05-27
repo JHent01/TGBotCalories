@@ -1,4 +1,5 @@
 {
   "TelegramBotToken": "ВАШ_ТОКЕН_TELEGRAM_БОТА",
-  "GeminiApiKey": "ВАШ_КЛЮЧ_AI"
+  "GeminiApiKey": "ВАШ_КЛЮЧ_AI",
+  "GroqApiKey": "ВАШ_КЛЮЧ_AI2"
 }
