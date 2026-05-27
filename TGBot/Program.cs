@@ -7,8 +7,8 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 var keysPath = Path.Combine(AppContext.BaseDirectory,  "keys.json");
-string keyTG;
-string keyAI;
+string keyTG = "";
+string keyAI = "";
 bool keysLoaded = true;
 if (!File.Exists(keysPath))
 {
@@ -22,17 +22,24 @@ if (!File.Exists(keysPath))
     {
         throw new FileNotFoundException($"Файл с ключами не найден: {keysPath}. Создайте keys.json на основе keys.example.json.");
     }
+}
+string token;
+string geminiApiKey;
+if (keysLoaded)
+{
+    using var keysFile = File.OpenRead(keysPath);
+    var keys = JsonSerializer.Deserialize<JsonElement>(keysFile);
 
-    
- 
-using var keysFile = File.OpenRead(keysPath);
-var keys = JsonSerializer.Deserialize<JsonElement>(keysFile);
-
-var token = keys.GetProperty("TelegramBotToken").GetString()
-    ?? throw new InvalidOperationException("TelegramBotToken не задан в keys.json.");
-var geminiApiKey = keys.GetProperty("GeminiApiKey").GetString()
-    ?? throw new InvalidOperationException("GeminiApiKey не задан в keys.json.");
-
+      token = keys.GetProperty("TelegramBotToken").GetString()
+        ?? throw new InvalidOperationException("TelegramBotToken не задан в keys.json.");
+      geminiApiKey = keys.GetProperty("GeminiApiKey").GetString()
+        ?? throw new InvalidOperationException("GeminiApiKey не задан в keys.json.");
+}
+else
+{
+    token = keyTG ?? throw new InvalidOperationException("TelegramBotToken не задан в переменных окружения.");
+    geminiApiKey = keyAI ?? throw new InvalidOperationException("GeminiApiKey не задан в переменных окружения.");
+}
 var bot = new TelegramBotClient(token); 
 
 var me = await bot.GetMe();
@@ -130,4 +137,4 @@ Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, HandleE
     Console.Error.WriteLine($"Ошибка [{source}]: {exception.Message}");
     return Task.CompletedTask;
 }
-}
+
