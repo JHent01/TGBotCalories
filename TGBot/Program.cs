@@ -68,6 +68,7 @@ await Task.Delay(Timeout.Infinite, cts.Token).ContinueWith(_ => { });
 
 async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
 {
+    bool isCommented = false;
     if (update.Message is not { } message)
         return;
 
@@ -88,8 +89,15 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
     );
 
     try
-    { 
+    {
+        string comment = "";
         var bestPhoto = photos[^1];
+        if (message.Caption != null)
+        {
+            comment = message.Caption ?? "";
+            isCommented = true;
+            
+        }
         var file = await botClient.GetFile(bestPhoto.FileId, cancellationToken);
         var fileUrl = $"https://api.telegram.org/file/bot{token}/{file.FilePath}";
 
@@ -106,8 +114,9 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
             "видимых ингредиентов" +
             "способа приготовления" +
             "средней калорийности продуктов"+
-            "типичных рецептов" +
+            "типичных рецептов" + 
             "Если точность определить невозможно —  указывай наиболее вероятную оценку с учетом визуального анализа." +
+            (isCommented ? $"Вот дополнительная информация: {comment}" : "") +
             "Правила:" +
             "Определи каждое отдельное блюдо или продукт на фото." +
             "Для каждого блюда укажи:" +
