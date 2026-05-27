@@ -6,10 +6,25 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-var keysPath = Path.Combine(AppContext.BaseDirectory, "..", "/etc/secrets/keys.json");
+var keysPath = Path.Combine(AppContext.BaseDirectory,  "keys.json");
+string keyTG;
+string keyAI;
+bool keysLoaded = true;
 if (!File.Exists(keysPath))
-    throw new FileNotFoundException($"Файл с ключами не найден: {keysPath}. Создайте keys.json на основе keys.example.json.");
+{
+    try
+    {
+        keyTG = Environment.GetEnvironmentVariable("TelegramBotToken");
+        keyAI = Environment.GetEnvironmentVariable("GeminiApiKey");
+        keysLoaded = false;
+    }
+    catch 
+    {
+        throw new FileNotFoundException($"Файл с ключами не найден: {keysPath}. Создайте keys.json на основе keys.example.json.");
+    }
 
+    
+ 
 using var keysFile = File.OpenRead(keysPath);
 var keys = JsonSerializer.Deserialize<JsonElement>(keysFile);
 
@@ -115,4 +130,4 @@ Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, HandleE
     Console.Error.WriteLine($"Ошибка [{source}]: {exception.Message}");
     return Task.CompletedTask;
 }
-
+}
