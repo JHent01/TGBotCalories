@@ -192,9 +192,34 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
         if (!groqResponse.IsSuccessStatusCode)
         {
             Console.Error.WriteLine($"Groq API ошибка: {groqResponse.StatusCode} - {responseText}");
+
+            string userErrorMessage = "❌ Ошибка API. Попробуй ещё раз позже.";
+            try
+            {
+                var errorJson = JsonSerializer.Deserialize<JsonElement>(responseText);
+                if (errorJson.TryGetProperty("error", out var errorObj) &&
+                    errorObj.TryGetProperty("code", out var code) &&
+                    code.GetString() == "rate_limit_exceeded" &&
+                    errorObj.TryGetProperty("message", out var errorMsg))
+                {
+                    var msgText = errorMsg.GetString() ?? "";
+                    var match = System.Text.RegularExpressions.Regex.Match(msgText, @"try again in ([\d.]+)s");
+                    if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double seconds))
+                    {
+                        int roundedSeconds = (int)Math.Ceiling(seconds);
+                        userErrorMessage = $"⏳ Слишком много запросов, попробуйте через {roundedSeconds} секунд.";
+                    }
+                    else
+                    {
+                        userErrorMessage = "⏳ Слишком много запросов, попробуйте позже.";
+                    }
+                }
+            }
+            catch { }
+
             await botClient.SendMessage(
                 chatId: message.Chat.Id,
-                text: $"❌ Ошибка API: {responseText}",
+                text: userErrorMessage,
                 cancellationToken: cancellationToken
             );
             return;
