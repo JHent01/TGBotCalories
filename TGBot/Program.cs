@@ -241,6 +241,14 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
             result = "Не удалось проанализировать фото.";
         }
 
+        if (result.Contains("Groq", StringComparison.OrdinalIgnoreCase) &&
+            (result.Contains("Current Plan", StringComparison.OrdinalIgnoreCase) ||
+             result.Contains("free", StringComparison.OrdinalIgnoreCase) ||
+             result.Contains("API", StringComparison.OrdinalIgnoreCase)))
+        {
+            result = ".";
+        }
+
         await botClient.SendMessage(
             chatId: message.Chat.Id,
             text: $"🔥 Подсчёт калорий:\n\n{result}",
